@@ -46,7 +46,7 @@ def round_function(state, key):
     return round_output
 
 
-def key_function_64(key, round_count):
+def key_function_80(key, round_count):
     # print('Start: ', hex(key))
     # print('')
 
@@ -88,6 +88,50 @@ def key_function_64(key, round_count):
     return round_key_int
 
 
+def key_function_128(key, round_count):
+    # print('Start: ', hex(key))
+    # print('')
+
+    r = [1 if t == '1'else 0 for t in format(key, '0128b')[::-1]]
+
+    # print('k bits:', r)
+    # print('')
+
+    h = r[-61:] + r[:-61]
+
+    # print('s bits:', h)
+    # print('')
+
+    round_key_int = 0
+    # print('init round int:', hex(round_key_int))
+    for index, ind_bit in enumerate(h):
+        round_key_int += (ind_bit << index)
+        # print('round:',index, '-', hex(round_key_int))
+
+    # print('round_key_int', hex(round_key_int))
+    # print('')
+
+    upper_nibble = round_key_int >> 124
+    second_nibble = round_key_int >> 120
+    # print('upper_nibble:', upper_nibble)
+
+    upper_nibble = s_box[upper_nibble]
+    second_nibble = s_box[second_nibble]
+
+    # print('upper_nibble sboxed', hex(upper_nibble))
+
+    xor_portion = ((round_key_int >> 62) & 0x1F) ^ round_count
+    # print('Count:', round_count)
+    # print('XOR Value:', xor_portion)
+
+    # print('Before:', hex(round_key_int))
+    round_key_int = (round_key_int & 0x00FFFFFFFFFFFFF83FFFFFFFFFFFFFFF) + (upper_nibble << 124) + (second_nibble << 120) + (xor_portion << 62)
+    # print('After: ', hex(round_key_int))
+
+    return round_key_int
+
+
+
 test_vectors = {1:(0x00000000000000000000, 0x0000000000000000, 0x5579C1387B228445),
                 2:(0xFFFFFFFFFFFFFFFFFFFF, 0x0000000000000000, 0xE72C46C0F5945049),
                 3:(0x00000000000000000000, 0xFFFFFFFFFFFFFFFF, 0xA112FFC72F68417B),
@@ -96,15 +140,15 @@ test_vectors = {1:(0x00000000000000000000, 0x0000000000000000, 0x5579C1387B22844
 for test_case in test_vectors:
 
     key_schedule = []
-    round_key = test_vectors[test_case][0]
+    current_round_key = test_vectors[test_case][0]
     round_state = test_vectors[test_case][1]
 
     # Key schedule
     for rnd_cnt in range(ROUND_LIMIT):
         # print(format(round_key, '020X'))
         # print(format(round_key >> 16, '016X'))
-        key_schedule.append(round_key >> 16)
-        round_key = key_function_64(round_key, rnd_cnt + 1)
+        key_schedule.append(current_round_key >> 16)
+        current_round_key = key_function_80(current_round_key, rnd_cnt + 1)
 
     for rnd in range(ROUND_LIMIT - 1):
         # print('Round:', rnd)
