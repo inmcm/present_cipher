@@ -111,8 +111,8 @@ def key_function_128(key, round_count):
     # print('round_key_int', hex(round_key_int))
     # print('')
 
-    upper_nibble = round_key_int >> 124
-    second_nibble = round_key_int >> 120
+    upper_nibble = (round_key_int >> 124) & 0xF
+    second_nibble = (round_key_int >> 120) & 0xF
     # print('upper_nibble:', upper_nibble)
 
     upper_nibble = s_box[upper_nibble]
@@ -132,16 +132,22 @@ def key_function_128(key, round_count):
 
 
 
-test_vectors = {1:(0x00000000000000000000, 0x0000000000000000, 0x5579C1387B228445),
+test_vectors_80 = {1:(0x00000000000000000000, 0x0000000000000000, 0x5579C1387B228445),
                 2:(0xFFFFFFFFFFFFFFFFFFFF, 0x0000000000000000, 0xE72C46C0F5945049),
                 3:(0x00000000000000000000, 0xFFFFFFFFFFFFFFFF, 0xA112FFC72F68417B),
                 4:(0xFFFFFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF, 0x3333DCD3213210D2)}
 
-for test_case in test_vectors:
+test_vectors_128 = {1:(0x00000000000000000000000000000000, 0x0000000000000000, 0x96db702a2e6900af),
+                2:(0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF, 0x0000000000000000, 0x13238c710272a5d8),
+                3:(0x00000000000000000000000000000000, 0xFFFFFFFFFFFFFFFF, 0x3c6019e5e5edd563),
+                4:(0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF, 0x628d9fbd4218e5b4)}
+
+print('Testing 80-bit Key Vectors:')
+for test_case in test_vectors_80:
 
     key_schedule = []
-    current_round_key = test_vectors[test_case][0]
-    round_state = test_vectors[test_case][1]
+    current_round_key = test_vectors_80[test_case][0]
+    round_state = test_vectors_80[test_case][1]
 
     # Key schedule
     for rnd_cnt in range(ROUND_LIMIT):
@@ -158,7 +164,35 @@ for test_case in test_vectors:
 
     round_state ^= key_schedule[31]
 
-    if round_state == test_vectors[test_case][2]:
+    if round_state == test_vectors_80[test_case][2]:
+        print('Success', hex(round_state))
+    else:
+        print('Failure', hex(round_state))
+
+print('')
+print('Testing 128-bit Key Vectors:')
+for test_case in test_vectors_128:
+
+    key_schedule = []
+    current_round_key = test_vectors_128[test_case][0]
+    round_state = test_vectors_128[test_case][1]
+
+    # Key schedule
+    for rnd_cnt in range(ROUND_LIMIT):
+        # print(format(round_key, '020X'))
+        # print(format(round_key >> 16, '016X'))
+        key_schedule.append(current_round_key >> 64)
+        current_round_key = key_function_128(current_round_key, rnd_cnt + 1)
+
+    for rnd in range(ROUND_LIMIT - 1):
+        # print('Round:', rnd)
+        # print('State:', format(round_state, '016X'))
+        # print('R_Key:', format(key_schedule[rnd], '016X'))
+        round_state = round_function(round_state, key_schedule[rnd])
+
+    round_state ^= key_schedule[31]
+
+    if round_state == test_vectors_128[test_case][2]:
         print('Success', hex(round_state))
     else:
         print('Failure', hex(round_state))
